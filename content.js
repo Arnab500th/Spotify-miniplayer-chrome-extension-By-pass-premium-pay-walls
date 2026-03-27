@@ -308,7 +308,10 @@
     '<span class="tip">Repeat</span></button>' +
     '<button class="cb sm" id="c-expand" aria-label="Expand">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>' +
-    '<span class="tip">Expand</span></button>' +
+    '<span class="tip">Full</span></button>' +
+    '<button class="cb sm" id="pip-btn" aria-label="Picture in Picture">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><rect x="12" y="11" width="8" height="6"/><polyline points="12 17 20 17 20 11"/></svg>' +
+    '<span class="tip">PiP</span></button>' +
     '</div>' +
     '<div id="vr"><button class="vi" id="vi">&#x1F50A;</button><input type="range" class="vs" id="vs" min="0" max="100" value="100"/></div>' +
     '<div id="rsz"><div class="rl"><span></span><span></span><span></span></div></div>' +
@@ -317,8 +320,8 @@
 
   // ── FloatUI ──────────────────────────────────────────────────────────────
 
-  function FloatUI() {
-    this.host = null;
+  function FloatUI(hostEl) {
+    this.host = hostEl || null;
     this.shadow = null;
     this.root = null;
     this.player = null;
@@ -333,10 +336,11 @@
   }
 
   FloatUI.prototype.mount = function () {
-    if (this.host) return;
-    this.host = document.createElement('div');
-    this.host.id = 'spotify-float-host';
-    document.documentElement.appendChild(this.host);
+    if (!this.host) {
+      this.host = document.createElement('div');
+      this.host.id = 'spotify-float-host';
+      document.documentElement.appendChild(this.host);
+    }
     this.shadow = this.host.attachShadow({ mode: 'open' });
     var style = document.createElement('style');
     style.textContent = UI_CSS;
@@ -365,6 +369,12 @@
 
   FloatUI.prototype._bindAll = function () {
     var s = this.shadow, self = this;
+
+    function bindBtn(id, eventName) {
+      var btn = s.getElementById(id);
+      if (btn) btn.addEventListener('click', function () { self._emit(eventName); });
+    }
+
     s.getElementById('btn-full').addEventListener('click', function () { self.setMode(MODES.FULL); });
     s.getElementById('btn-compact').addEventListener('click', function () { self.setMode(MODES.COMPACT); });
     s.getElementById('btn-mini').addEventListener('click', function () { self.setMode(MODES.MINI); });
@@ -386,6 +396,7 @@
     s.getElementById('vs').addEventListener('input', function (e) { self._emit('volume', parseInt(e.target.value, 10)); });
     s.getElementById('vi').addEventListener('click', function () { self._emit('mute'); });
     s.getElementById('c-expand').addEventListener('click', function () { self.setMode(MODES.FULL); });
+    bindBtn('pip-btn', 'open-pip');
     // Double-click player to expand from mini mode
     this._setupMiniDrag();
     this._setupDrag();
@@ -593,6 +604,8 @@
   var retryCount = 0;
   var lastTitle = null;
   var debTimers = {};
+  var pipWindow = null;
+  var pipUI = null;
 
   function waitForSpotify(cb) {
     var called = false;
@@ -630,6 +643,75 @@
     };
   }
 
+  // ── Document PiP ──────────────────────────────────────────────────────────
+  async function openDocumentPiP() {
+    if (pipWindow) {
+      pipWindow.focus();
+      return;
+    }
+    if (!window.documentPictureInPicture) {
+      alert("Your browser does not natively support the Document Picture-in-Picture API.");
+      return;
+    }
+    try {
+      pipWindow = await window.documentPictureInPicture.requestWindow({
+        width: 280,
+        height: 420
+      });
+      
+      var host = pipWindow.document.createElement('div');
+      host.style.width = '100%';
+      host.style.height = '100%';
+      pipWindow.document.body.style.margin = '0';
+      pipWindow.document.body.style.background = '#000';
+      pipWindow.document.body.appendChild(host);
+
+      pipUI = new FloatUI(host);
+      pipUI.mount();
+
+      // CSS overrides specifically for PiP
+      var over = pipWindow.document.createElement('style');
+      over.textContent = `
+        #player { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; }
+        #dh { display: none !important; }
+        #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn { display: none !important; }
+        #aw { flex: 1 1 auto; min-height: 0; padding: 0 14px 10px !important; display: flex; align-items: center; justify-content: center; }
+        .ai { height: 100% !important; max-height: 100% !important; padding-top: 0 !important; position: static !important; display: flex; align-items: center; justify-content: center; background: transparent !important; }
+        #art { width: auto !important; max-width: 100%; height: 100%; object-fit: contain; position: static !important; }
+        #ti { padding: 0 14px 4px !important; overflow: hidden; min-width: 0; flex-shrink: 0; }
+        #pw { padding: 0 14px 2px !important; flex-shrink: 0; }
+        .trow { margin-bottom: 3px !important; }
+        #ctrl { padding: 2px 14px 6px !important; flex-shrink: 0; }
+        #vr { padding: 0 14px 10px !important; flex-shrink: 0; }
+        @media (max-height: 250px) { #aw { display: none !important; } }
+      `;
+      pipUI.shadow.appendChild(over);
+
+      pipUI.on({
+        'play-pause': handlePlayPause,
+        'prev': handlePrev,
+        'next': handleNext,
+        'shuffle': handleShuffle,
+        'repeat': handleRepeat,
+        'seek': handleSeek,
+        'volume': handleVolume,
+        'mute': function () { safeClick('muteButton'); }
+      });
+
+      pipWindow.addEventListener('pagehide', function () {
+        pipWindow = null;
+        pipUI = null;
+        if (!isVisible) { stopSync(); stopObs(); }
+      });
+
+      if (!syncTimer) { startSync(); startObs(); }
+      syncNow();
+    } catch (err) {
+      console.error("[SpotifyFloat PiP]", err);
+      throw err;
+    }
+  }
+
   // ── Boot ─────────────────────────────────────────────────────────────────
   waitForSpotify(function () {
     loadStorage(function (stored) {
@@ -650,15 +732,16 @@
         'seek': handleSeek,
         'volume': handleVolume,
         'mute': function () { safeClick('muteButton'); },
-        'hide': function () { isVisible = false; stopSync(); stopObs(); },
+        'hide': function () { isVisible = false; if (!pipUI) { stopSync(); stopObs(); } },
         'mode': function (m) { saveStorage({ mode: m }); },
         'pos': function (p) { saveStorage({ position: p }); },
         'size': function (s) { saveStorage({ size: s }); },
+        'open-pip': function () { openDocumentPiP().catch(function(){}); }
       });
 
       ui.onVisibilityChange(function (v) {
         isVisible = v;
-        if (v) { syncNow(); startSync(); startObs(); }
+        if (v || pipUI) { syncNow(); startSync(); startObs(); }
         else { stopSync(); stopObs(); }
         saveStorage({ visible: v });
       });
@@ -671,7 +754,7 @@
 
   // ── Sync ─────────────────────────────────────────────────────────────────
   function syncNow() {
-    if (!ui || !isVisible) return;
+    if ((!ui || !isVisible) && !pipUI) return;
     try {
       var title = readText('trackTitle');
       var artist = readText('artistName');
@@ -684,22 +767,41 @@
 
       if (title && title !== lastTitle) { lastTitle = title; invalidateCache(); }
 
-      ui.updateTrack(title, artist, artUrl);
-
       var pb = cachedResolve('playPauseButton');
       var playing = pb ? (pb.getAttribute('aria-label') || '').toLowerCase().indexOf('pause') !== -1 : false;
-      ui.updatePlayState(playing);
-
-      ui.updateProgress(readText('currentTime'), readText('totalDuration'), calcProgress());
-
       var shuf = cachedResolve('shuffleButton');
-      if (shuf) ui.updateShuffle((shuf.getAttribute('aria-label') || '').toLowerCase().indexOf('disable') !== -1);
-
+      var shuffleOn = shuf ? (shuf.getAttribute('aria-label') || '').toLowerCase().indexOf('disable') !== -1 : false;
       var rep = cachedResolve('repeatButton');
+      var repeatMode = 0;
       if (rep) {
         var rl = (rep.getAttribute('aria-label') || '').toLowerCase();
-        ui.updateRepeat(rl.indexOf('one') !== -1 ? 2 : rl.indexOf('disable') !== -1 ? 1 : 0);
+        repeatMode = rl.indexOf('one') !== -1 ? 2 : rl.indexOf('disable') !== -1 ? 1 : 0;
       }
+      var prog = calcProgress();
+      var cTime = readText('currentTime');
+      var tTime = readText('totalDuration');
+      var volEl = resolveSelector(SELECTORS.volumeSlider);
+      var vl = volEl ? parseInt(volEl.value, 10) : -1;
+
+      if (ui && isVisible) {
+        ui.updateTrack(title, artist, artUrl);
+        ui.updatePlayState(playing);
+        ui.updateProgress(cTime, tTime, prog);
+        ui.updateShuffle(shuffleOn);
+        ui.updateRepeat(repeatMode);
+      }
+
+      if (pipUI) {
+        pipUI.updateTrack(title, artist, artUrl);
+        pipUI.updatePlayState(playing);
+        pipUI.updateProgress(cTime, tTime, prog);
+        pipUI.updateShuffle(shuffleOn);
+        pipUI.updateRepeat(repeatMode);
+        if (vl !== -1 && pipUI.shadow.activeElement !== pipUI.shadow.querySelector('#vs')) {
+          pipUI.updateVolume(vl);
+        }
+      }
+
       retryCount = 0;
     } catch (e) {
       if (++retryCount >= 5) {
@@ -729,13 +831,13 @@
     return p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : 0;
   }
 
-  function startSync() { stopSync(); syncTimer = setInterval(function () { if (isVisible) syncNow(); }, 500); }
+  function startSync() { stopSync(); syncTimer = setInterval(function () { if (isVisible || pipUI) syncNow(); }, 500); }
   function stopSync() { if (syncTimer) { clearInterval(syncTimer); syncTimer = null; } }
 
   function startObs() {
     if (mutObs) return;
     var target = resolveSelector(SELECTORS.nowPlayingWidget) || document.body;
-    var handler = function () { invalidateCache(); if (isVisible) syncNow(); };
+    var handler = function () { invalidateCache(); if (isVisible || pipUI) syncNow(); };
     var debHandler = (function () {
       var t;
       return function () { clearTimeout(t); t = setTimeout(handler, 200); };
@@ -802,7 +904,8 @@
       if (ui.isVisible) {
         ui.isVisible = false;
         if (ui.host) ui.host.style.display = 'none';
-        isVisible = false; stopSync(); stopObs();
+        isVisible = false; 
+        if (!pipUI) { stopSync(); stopObs(); }
       } else {
         ui.show(); isVisible = true; syncNow(); startSync(); startObs();
       }
@@ -814,60 +917,10 @@
     } else if (msg.type === 'TAB_UPDATED') {
       setTimeout(function () { stopObs(); invalidateCache(); startObs(); syncNow(); }, 1000);
 
-    } else if (msg.type === 'GET_PLAYER_STATE') {
-      // Gather full player state for PiP window
-      var title = readText('trackTitle');
-      var artist = readText('artistName');
-      var artEl = cachedResolve('albumArt');
-      var artUrl = '';
-      if (artEl && artEl.src) {
-        // Upgrade Spotify image size from 48x48 or 64x64 to 300x300 or original
-        artUrl = artEl.src.replace(/ab67616d00004851/g, 'ab67616d0000b273')
-                          .replace(/ab67616d00001e02/g, 'ab67616d0000b273');
-      }
-      var pb = cachedResolve('playPauseButton');
-      var playing = pb ? (pb.getAttribute('aria-label') || '').toLowerCase().indexOf('pause') !== -1 : false;
-      var curTime = readText('currentTime');
-      var totTime = readText('totalDuration');
-      var progress = calcProgress();
-      var shuf = cachedResolve('shuffleButton');
-      var shuffleOn = shuf ? (shuf.getAttribute('aria-label') || '').toLowerCase().indexOf('disable') !== -1 : false;
-      var rep = cachedResolve('repeatButton');
-      var repeatMode = 0;
-      if (rep) {
-        var rl = (rep.getAttribute('aria-label') || '').toLowerCase();
-        repeatMode = rl.indexOf('one') !== -1 ? 2 : rl.indexOf('disable') !== -1 ? 1 : 0;
-      }
-      var volEl = resolveSelector(SELECTORS.volumeSlider);
-      var volume = volEl ? parseInt(volEl.value, 10) : 100;
-
-      reply({
-        title: title,
-        artist: artist,
-        artUrl: artUrl,
-        playing: playing,
-        currentTime: curTime,
-        totalDuration: totTime,
-        progress: progress,
-        shuffle: shuffleOn,
-        repeat: repeatMode,
-        volume: volume
-      });
-
-    } else if (msg.type === 'PLAYER_CMD') {
-      switch (msg.action) {
-        case 'play-pause': handlePlayPause(); break;
-        case 'prev': handlePrev(); break;
-        case 'next': handleNext(); break;
-        case 'shuffle': handleShuffle(); break;
-        case 'repeat': handleRepeat(); break;
-        case 'seek': if (msg.data !== undefined) handleSeek(msg.data); break;
-        case 'volume': if (msg.data !== undefined) handleVolume(msg.data); break;
-        case 'mute': safeClick('muteButton'); break;
-      }
-      reply({ ok: true });
+    } else if (msg.type === 'OPEN_PIP') {
+      openDocumentPiP().then(function() { reply({ ok: true }); }).catch(function(e) { reply({ error: e.message }); });
+      return true;
     }
-    return true;
   });
 
 })();

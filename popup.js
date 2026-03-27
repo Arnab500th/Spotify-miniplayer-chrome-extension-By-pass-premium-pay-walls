@@ -87,16 +87,19 @@ openBtn.addEventListener('click', async () => {
 // PiP Player button
 const pipBtn = document.getElementById('pip-btn');
 pipBtn.addEventListener('click', async () => {
+  if (!isSpotifyTab || !currentTabId) {
+    statusText.textContent = 'No active Spotify tab found';
+    return;
+  }
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'OPEN_PIP_PLAYER' });
+    const response = await chrome.tabs.sendMessage(currentTabId, { type: 'OPEN_PIP' });
     if (response?.ok) {
       window.close();
     } else {
       statusText.textContent = response?.error || 'Failed to open PiP player';
     }
   } catch (err) {
-    console.error('[SpotifyFloat Popup]', err);
-    statusText.textContent = 'Could not open PiP player';
+    statusText.textContent = 'Could not open PiP. Please refresh the Spotify tab.';
   }
 });
 
