@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="15.36" fill="#0a0a0f"/>
+  <rect width="128" height="128" rx="15.36" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1db954"/>
+      <stop offset="100%" stop-color="#0a8a3a"/>
+    </linearGradient>
+  </defs>
+  <!-- Music note icon -->
+  <g transform="translate(23.04, 19.2)">
+    <rect x="28.16" y="10.24" width="7.68" height="48.64" rx="3.84" fill="white"/>
+    <rect x="46.08" y="0" width="7.68" height="40.96" rx="3.84" fill="white"/>
+    <line x1="32" y1="10.24" x2="49.92" y2="0" stroke="white" stroke-width="7.04" stroke-linecap="round"/>
+    <circle cx="32" cy="58.88" r="11.52" fill="white"/>
+    <circle cx="49.92" cy="48.64" r="11.52" fill="white"/>
+  </g>
+</svg>

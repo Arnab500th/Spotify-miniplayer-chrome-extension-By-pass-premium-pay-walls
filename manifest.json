@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Spotify Float — Mini Player",
+  "version": "1.2.3",
+  "description": "Floating, resizable mini-player for Spotify Web. No API, no Premium required.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://open.spotify.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://open.spotify.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.svg",
+      "48":  "icons/icon48.svg",
+      "128": "icons/icon128.svg"
+    }
+  },
+  "icons": {
+    "16":  "icons/icon16.svg",
+    "48":  "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "player.html"],
+      "matches": ["https://open.spotify.com/*"]
+    }
+  ]
+}
