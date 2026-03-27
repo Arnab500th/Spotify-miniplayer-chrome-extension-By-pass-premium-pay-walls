@@ -336,16 +336,17 @@
   }
 
   FloatUI.prototype.mount = function () {
+    var doc = this.host ? this.host.ownerDocument : document;
     if (!this.host) {
-      this.host = document.createElement('div');
+      this.host = doc.createElement('div');
       this.host.id = 'spotify-float-host';
-      document.documentElement.appendChild(this.host);
+      doc.documentElement.appendChild(this.host);
     }
     this.shadow = this.host.attachShadow({ mode: 'open' });
-    var style = document.createElement('style');
+    var style = doc.createElement('style');
     style.textContent = UI_CSS;
     this.shadow.appendChild(style);
-    var wrap = document.createElement('div');
+    var wrap = doc.createElement('div');
     wrap.innerHTML = UI_HTML;
     this.shadow.appendChild(wrap.firstElementChild);
     this.root = this.shadow.getElementById('float-root');
@@ -357,12 +358,16 @@
 
   FloatUI.prototype.unmount = function () {
     if (!this.host) return;
-    document.removeEventListener('mousemove', this._onDragMove);
-    document.removeEventListener('mouseup', this._onDragEnd);
-    document.removeEventListener('mousemove', this._onResizeMove);
-    document.removeEventListener('mouseup', this._onResizeEnd);
-    this.host.remove();
-    this.host = this.shadow = this.root = this.player = null;
+    var doc = this.host.ownerDocument || document;
+    doc.removeEventListener('mousemove', this._onDragMove);
+    doc.removeEventListener('mouseup', this._onDragUp);
+    doc.removeEventListener('mousemove', this._onResizeMove);
+    doc.removeEventListener('mouseup', this._onResizeUp);
+    if (this.host.parentNode) this.host.parentNode.removeChild(this.host);
+    this.host = null;
+    this.shadow = null;
+    this.root = null;
+    this.player = null;
     this.isVisible = false;
     this._notifyVis(false);
   };
@@ -410,40 +415,58 @@
 
   FloatUI.prototype._setupMiniDrag = function () {
     var self = this;
-    this.player.addEventListener('dblclick', function () {
-      if (self.mode === MODES.MINI) self.setMode(MODES.FULL);
+    var doc = this.host ? this.host.ownerDocument : document;
+    this.player.addEventListener('dblclick', function(e) {
+      if(self.mode === 'mini') self._emit('mode', 'full');
     });
-    this.player.addEventListener('mousedown', function (e) {
-      if (self.mode !== MODES.MINI) return;
-      if (e.target.closest('button')) return;
-      e.preventDefault();
-      var r = self.root.getBoundingClientRect();
-      self._drag = { active: true, sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top };
-      document.addEventListener('mousemove', self._onDragMove);
-      document.addEventListener('mouseup', self._onDragEnd);
+    this.player.addEventListener('mousedown', function(e) {
+      if (self.mode !== 'mini') return;
+      if (e.target.closest('#ctrl')) return;
+      self.isDragging = true;
+      self._drag.sx = e.clientX; self._drag.sy = e.clientY;
+      var r = self.player.getBoundingClientRect();
+      self._drag.ox = r.left; self._drag.oy = r.top;
     });
+    var originalDragMove = this._onDragMove;
+    this._onDragMove = function (e) {
+      if (!self.isDragging) return;
+      if (self.mode === 'mini') {
+        self.player.style.left = (self._drag.ox + e.clientX - self._drag.sx) + 'px';
+        self.player.style.top = (self._drag.oy + e.clientY - self._drag.sy) + 'px';
+        self.player.style.right = 'auto';
+        self.player.style.bottom = 'auto';
+        self._emit('pos', { left: self.player.style.left, top: self.player.style.top });
+      } else if (originalDragMove) {
+        originalDragMove(e);
+      }
+    };
+    // No need to re-add doc listeners if they were added by _setupDrag, but let's be safe.
   };
 
   FloatUI.prototype._setupDrag = function () {
     var self = this;
-    this._onDragMove = function (e) {
-      if (!self._drag.active) return;
-      self._setPos(self._drag.ox + (e.clientX - self._drag.sx), self._drag.oy + (e.clientY - self._drag.sy));
-    };
-    this._onDragEnd = function () {
-      self._drag.active = false;
-      document.removeEventListener('mousemove', self._onDragMove);
-      document.removeEventListener('mouseup', self._onDragEnd);
-      self._emit('pos', self._getPos());
-    };
-    this.shadow.getElementById('dh').addEventListener('mousedown', function (e) {
-      if (e.target.closest('button')) return;
-      e.preventDefault();
-      var r = self.root.getBoundingClientRect();
-      self._drag = { active: true, sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top };
-      document.addEventListener('mousemove', self._onDragMove);
-      document.addEventListener('mouseup', self._onDragEnd);
+    var doc = this.host ? this.host.ownerDocument : document;
+    var dh = this.shadow.getElementById('dh');
+    dh.addEventListener('mousedown', function (e) {
+      if (e.target.closest('.hbtns')) return;
+      self.isDragging = true;
+      self._drag.sx = e.clientX; self._drag.sy = e.clientY;
+      var r = self.player.getBoundingClientRect();
+      self._drag.ox = r.left; self._drag.oy = r.top;
     });
+    this._onDragMove = function (e) {
+      if (!self.isDragging) return;
+      if (self.mode === 'full' || self.mode === 'compact') {
+        self.player.style.left = (self._drag.ox + e.clientX - self._drag.sx) + 'px';
+        self.player.style.top = (self._drag.oy + e.clientY - self._drag.sy) + 'px';
+        self.player.style.right = 'auto';
+        self.player.style.bottom = 'auto';
+        self._emit('pos', { left: self.player.style.left, top: self.player.style.top });
+      }
+    };
+    this._onDragUp = function () { self.isDragging = false; };
+    doc.addEventListener('mousemove', this._onDragMove);
+    doc.addEventListener('mouseup', this._onDragUp);
   };
 
   FloatUI.prototype._setPos = function (x, y) {
@@ -467,24 +490,26 @@
 
   FloatUI.prototype._setupResize = function () {
     var self = this;
+    var doc = this.host ? this.host.ownerDocument : document;
+    var rsz = this.shadow.getElementById('rsz');
+    var isResizing = false;
+    rsz.addEventListener('mousedown', function (e) {
+      isResizing = true;
+      self._resize.sx = e.clientX; self._resize.sy = e.clientY;
+      var r = self.player.getBoundingClientRect();
+      self._resize.ow = r.width; self._resize.oh = r.height;
+      e.stopPropagation();
+      e.preventDefault();
+    });
     this._onResizeMove = function (e) {
-      if (!self._resize.active) return;
+      if (!isResizing) return;
       self.player.style.width = Math.max(200, Math.min(520, self._resize.ow + (e.clientX - self._resize.sx))) + 'px';
       self.player.style.height = Math.max(120, Math.min(700, self._resize.oh + (e.clientY - self._resize.sy))) + 'px';
-    };
-    this._onResizeEnd = function () {
-      self._resize.active = false;
-      document.removeEventListener('mousemove', self._onResizeMove);
-      document.removeEventListener('mouseup', self._onResizeEnd);
       self._emit('size', { width: self.player.style.width, height: self.player.style.height });
     };
-    this.shadow.getElementById('rsz').addEventListener('mousedown', function (e) {
-      e.preventDefault(); e.stopPropagation();
-      var r = self.player.getBoundingClientRect();
-      self._resize = { active: true, sx: e.clientX, sy: e.clientY, ow: r.width, oh: r.height };
-      document.addEventListener('mousemove', self._onResizeMove);
-      document.addEventListener('mouseup', self._onResizeEnd);
-    });
+    this._onResizeUp = function () { isResizing = false; };
+    doc.addEventListener('mousemove', this._onResizeMove);
+    doc.addEventListener('mouseup', this._onResizeUp);
   };
 
   FloatUI.prototype.setSize = function (s) {
@@ -672,6 +697,7 @@
       // CSS overrides specifically for PiP
       var over = pipWindow.document.createElement('style');
       over.textContent = `
+        #float-root { position: static !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
         #player { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; }
         #dh { display: none !important; }
         #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn { display: none !important; }
