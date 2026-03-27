@@ -697,8 +697,8 @@
       // CSS overrides specifically for PiP
       var over = pipWindow.document.createElement('style');
       over.textContent = `
-        #float-root { position: static !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-        #player { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; }
+        #float-root { position: static !important; inset: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; }
+        #player { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; min-width: 0 !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; overflow: hidden !important; background: var(--bg) !important; }
         #dh { display: none !important; }
         #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn { display: none !important; }
         #aw { flex: 1 1 auto; min-height: 0; padding: 0 14px 10px !important; display: flex; align-items: center; justify-content: center; }
@@ -709,7 +709,25 @@
         .trow { margin-bottom: 3px !important; }
         #ctrl { padding: 2px 14px 6px !important; flex-shrink: 0; }
         #vr { padding: 0 14px 10px !important; flex-shrink: 0; }
-        @media (max-height: 250px) { #aw { display: none !important; } }
+        
+        @media (max-width: 240px) {
+          #ctrl { gap: 2px !important; padding: 2px 8px 6px !important; }
+          .cb.lg { width: 34px !important; height: 34px !important; }
+          .cb.sm { width: 26px !important; height: 26px !important; }
+          #ti { padding-left: 8px !important; padding-right: 8px !important; }
+          #aw { padding-left: 8px !important; padding-right: 8px !important; }
+          #pw { padding-left: 8px !important; padding-right: 8px !important; }
+          #vr { padding-left: 8px !important; padding-right: 8px !important; }
+        }
+        
+        @media (max-height: 260px) {
+          #player { display: block !important; padding-top: 14px !important; }
+          #aw { float: left !important; width: 48px !important; height: 48px !important; padding: 0 0 0 14px !important; margin-bottom: 10px !important; flex: none !important; }
+          .ai { width: 100% !important; height: 100% !important; border-radius: 6px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important; padding: 0 !important; }
+          #ti { margin-left: 48px !important; padding: 0 14px 0 12px !important; text-align: left !important; height: 48px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
+          #pw { clear: both !important; padding: 10px 14px 2px !important; }
+          #vr { display: none !important; }
+        }
       `;
       pipUI.shadow.appendChild(over);
 
