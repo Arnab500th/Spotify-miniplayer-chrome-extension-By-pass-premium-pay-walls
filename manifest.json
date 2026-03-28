@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Spotify Float — Mini Player",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "Floating, resizable mini-player for Spotify Web. No API, no Premium required.",
   "permissions": ["storage", "activeTab"],
   "host_permissions": ["https://open.spotify.com/*"],

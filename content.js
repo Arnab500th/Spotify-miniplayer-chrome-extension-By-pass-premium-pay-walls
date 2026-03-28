@@ -196,7 +196,7 @@
     ".ag { position:absolute; inset:0; background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,0.55)); pointer-events:none; }",
 
     // track info
-    "#ti { padding:0 12px 8px; flex-shrink:0; overflow:hidden; min-width:0; }",
+    "#ti { padding:0 12px 2px; flex-shrink:0; overflow:hidden; min-width:0; }",
     ".ttl { font-size:13px; font-weight:600; color:var(--t1); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.3; letter-spacing:-0.015em; }",
     ".art { font-size:11px; color:var(--t2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }",
     ".scroll { display:inline-block; animation:mar 9s linear infinite; padding-right:40px; }",
@@ -250,7 +250,7 @@
 
     // compact
     ".mc #aw { display:none; }",
-    ".mc #ti { padding:4px 12px 7px; }",
+    ".mc #ti { padding:4px 12px 2px; }",
     ".mc .ttl { font-size:12px; }",
     ".mc #ctrl { padding:2px 10px 10px; gap:4px; }",
     ".mc .cb.lg { width:34px; height:34px; font-size:14px; }",
@@ -291,6 +291,7 @@
     '<div id="ctrl">' +
     '<button class="cb sm" id="c-shuf" aria-label="Shuffle">' +
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><polyline points="16 21 21 21 21 16"/><line x1="4" y1="20" x2="21" y2="3"/><line x1="21" y1="21" x2="14" y2="14"/><line x1="4" y1="4" x2="9" y2="9"/></svg>' +
+    '<span class="rep-badge" id="shuf-badge"></span>' +
     '<span class="tip">Shuffle</span></button>' +
     '<button class="cb sm" id="c-prev" aria-label="Previous">' +
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.2"/></svg>' +
@@ -593,10 +594,13 @@
     if (td) td.textContent = tot || '0:00';
   };
 
-  FloatUI.prototype.updateShuffle = function (on) {
+  FloatUI.prototype.updateShuffle = function (mode) {
     if (!this.shadow) return;
     var b = this.shadow.getElementById('c-shuf');
-    if (b) b.classList.toggle('on', on);
+    if (!b) return;
+    b.classList.toggle('on', mode > 0);
+    var bdg = this.shadow.getElementById('shuf-badge');
+    if (bdg) bdg.textContent = mode === 2 ? '★' : '';
   };
 
   FloatUI.prototype.updateRepeat = function (mode) {
@@ -725,7 +729,7 @@
           #aw { float: left !important; width: 48px !important; height: 48px !important; padding: 0 0 0 14px !important; margin-bottom: 10px !important; flex: none !important; }
           .ai { width: 100% !important; height: 100% !important; border-radius: 6px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important; padding: 0 !important; }
           #ti { margin-left: 48px !important; padding: 0 14px 0 12px !important; text-align: left !important; height: 48px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
-          #pw { clear: both !important; padding: 10px 14px 2px !important; }
+          #pw { clear: both !important; padding: 4px 14px 2px !important; }
           #vr { display: none !important; }
         }
       `;
@@ -814,12 +818,19 @@
       var pb = cachedResolve('playPauseButton');
       var playing = pb ? (pb.getAttribute('aria-label') || '').toLowerCase().indexOf('pause') !== -1 : false;
       var shuf = cachedResolve('shuffleButton');
-      var shuffleOn = shuf ? (shuf.getAttribute('aria-label') || '').toLowerCase().indexOf('disable') !== -1 : false;
+      var shuffleMode = 0;
+      if (shuf) {
+        var sl = (shuf.getAttribute('aria-label') || '').toLowerCase();
+        if (sl.indexOf('enable smart') !== -1) shuffleMode = 1;
+        else if (sl.indexOf('disable smart') !== -1) shuffleMode = 2;
+        else if (sl.indexOf('disable') !== -1) shuffleMode = 1;
+      }
       var rep = cachedResolve('repeatButton');
       var repeatMode = 0;
       if (rep) {
         var rl = (rep.getAttribute('aria-label') || '').toLowerCase();
-        repeatMode = rl.indexOf('one') !== -1 ? 2 : rl.indexOf('disable') !== -1 ? 1 : 0;
+        if (rl.indexOf('enable repeat one') !== -1) repeatMode = 1;
+        else if (rl.indexOf('disable repeat') !== -1) repeatMode = 2;
       }
       var prog = calcProgress();
       var cTime = readText('currentTime');
@@ -831,7 +842,7 @@
         ui.updateTrack(title, artist, artUrl);
         ui.updatePlayState(playing);
         ui.updateProgress(cTime, tTime, prog);
-        ui.updateShuffle(shuffleOn);
+        ui.updateShuffle(shuffleMode);
         ui.updateRepeat(repeatMode);
       }
 
@@ -839,7 +850,7 @@
         pipUI.updateTrack(title, artist, artUrl);
         pipUI.updatePlayState(playing);
         pipUI.updateProgress(cTime, tTime, prog);
-        pipUI.updateShuffle(shuffleOn);
+        pipUI.updateShuffle(shuffleMode);
         pipUI.updateRepeat(repeatMode);
         if (vl !== -1 && pipUI.shadow.activeElement !== pipUI.shadow.querySelector('#vs')) {
           pipUI.updateVolume(vl);
