@@ -14,7 +14,7 @@ No Spotify API. No Premium required. Just open the tab and play.
 
 <br/>
 
-![Demo Screenshot](https://i.imgur.com/placeholder.png)
+![Demo Screenshot](https://i.ibb.co/4nPJcxVm/Screenshot-2026-03-28-232255.png)
 <!-- Replace the above with a real screenshot once uploaded -->
 
 </div>
