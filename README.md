@@ -1,6 +1,48 @@
-# 🎵 Spotify Float — Mini Player Chrome Extension
+<div align="center">
 
-A production-grade Chrome Extension (Manifest V3) that creates a floating, resizable mini-player UI for Spotify Web (`open.spotify.com`) using DOM interaction — no Spotify API, no Premium required.
+<img src="icons/icon128.png" alt="Spotify Float Icon" width="80" height="80" />
+
+# Spotify Float — Mini Player
+
+**A floating, resizable Picture-in-Picture mini-player for Spotify Web.**
+No Spotify API. No Premium required. Just open the tab and play.
+
+[![Chrome Extension](https://img.shields.io/badge/Chrome-Extension-4285F4?style=flat-square&logo=googlechrome&logoColor=white)](https://github.com/Arnab500th/Spotify-miniplayer-chrome-extension-By-pass-premium-pay-walls)
+[![Manifest V3](https://img.shields.io/badge/Manifest-V3-1db954?style=flat-square)](https://developer.chrome.com/docs/extensions/mv3/intro/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue?style=flat-square)](manifest.json)
+
+<br/>
+
+![Demo Screenshot](https://i.imgur.com/placeholder.png)
+<!-- Replace the above with a real screenshot once uploaded -->
+
+</div>
+
+---
+
+## ✨ What It Does
+
+Spotify Float injects a **floating mini-player** directly onto the Spotify Web page. The player sits above everything else, is fully draggable and resizable, and gives you complete playback control without switching tabs. It also supports a true **Document Picture-in-Picture** mode — a separate always-on-top window showing album art and controls.
+
+Works on the **free tier** of Spotify Web. No authentication, no API keys, no data collection.
+
+---
+
+## 🎯 Features
+
+| Feature | Details |
+|---|---|
+| 🎵 Playback Controls | Play/pause, next, previous, shuffle, repeat |
+| 🔊 Volume Control | Slider + mute toggle |
+| ⏩ Drag-to-Seek | Click or scrub the progress bar to any position |
+| 🖼️ Picture-in-Picture | Always-on-top OS window with album art overlay |
+| 🎨 Three UI Modes | Full (art + info + controls), Compact, Mini pill |
+| 📌 Draggable & Resizable | Freely position and resize, persisted across sessions |
+| 💾 State Persistence | Position, size, mode and visibility saved via `chrome.storage` |
+| ⌨️ Keyboard Shortcuts | `Space`, `Ctrl+→`, `Ctrl+←` |
+| 🛡️ Shadow DOM | Fully isolated from Spotify's own styles and scripts |
+| ⚡ Performance | Sync loop pauses when player is hidden; no background polling |
 
 ---
 
@@ -8,192 +50,167 @@ A production-grade Chrome Extension (Manifest V3) that creates a floating, resiz
 
 ```
 spotify-miniplayer/
-├── manifest.json          # MV3 manifest
-├── background.js          # Service worker (message routing, tab lifecycle)
-├── content.js             # Core logic (sync, controls, hotkeys, storage)
-├── selectors.js           # Resilient DOM selector mapping system
-├── ui.js                  # Shadow DOM UI (drag, resize, modes, animations)
-├── popup.html             # Toolbar popup UI
-├── popup.js               # Toolbar popup logic
-├── generate-icons.js      # Icon generator utility
+├── manifest.json          ← MV3 manifest (permissions, scripts, icons)
+├── background.js          ← Service worker: message routing + tab lifecycle
+├── content.js             ← Bundled content script: UI + sync + controls
+├── selectors.js           ← Resilient DOM selector map with fallbacks
+├── ui.js                  ← Shadow DOM UI module (drag, resize, modes)
+├── popup.html             ← Toolbar popup interface
+├── popup.js               ← Toolbar popup logic
+├── generate-icons.js      ← Node.js icon generator (no dependencies)
 └── icons/
-    ├── icon16.svg
-    ├── icon48.svg
-    └── icon128.svg
+    ├── icon16.png
+    ├── icon48.png
+    └── icon128.png
 ```
 
 ---
 
 ## 🚀 Installation
 
-### Step 1 — Download / Clone
+> No Chrome Web Store listing yet — load it manually in Developer Mode.
 
-Save all files into a folder called `spotify-miniplayer/` (preserving the structure above).
+**Step 1 — Clone the repo**
 
-### Step 2 — Load in Chrome
+```bash
+git clone https://github.com/Arnab500th/Spotify-miniplayer-chrome-extension-By-pass-premium-pay-walls.git
+cd Spotify-miniplayer-chrome-extension-By-pass-premium-pay-walls
+```
 
-1. Open Chrome and navigate to: `chrome://extensions`
-2. Enable **Developer Mode** (toggle in the top-right corner)
-3. Click **"Load unpacked"**
-4. Select your `spotify-miniplayer/` folder
-5. The extension installs — you'll see the 🎵 icon in your toolbar
+**Step 2 — Generate icons** *(skip if `icons/` folder already has PNGs)*
 
-### Step 3 — Use It
+```bash
+node generate-icons.js
+```
 
-1. Open **[Spotify Web](https://open.spotify.com)** in Chrome
-2. Start playing any song
-3. Click the 🎵 extension icon in the toolbar
-4. Click **"Show Mini Player"** — the floating player appears!
+**Step 3 — Load in Chrome**
+
+1. Navigate to `chrome://extensions`
+2. Enable **Developer Mode** (toggle, top-right)
+3. Click **Load unpacked**
+4. Select the cloned folder
+5. The 🎵 icon appears in your toolbar
+
+**Step 4 — Use it**
+
+1. Open [open.spotify.com](https://open.spotify.com) and start playing a song
+2. Click the 🎵 icon in the toolbar
+3. Hit **Show Mini Player** — the floating player appears on the page
 
 ---
 
-## 🎯 Features
+## 🎮 Usage
 
-### Playback Controls (via DOM click simulation)
-| Control | Method |
-|---------|--------|
-| Play / Pause | Click `[data-testid="control-button-playpause"]` |
-| Next Track | Click `[data-testid="control-button-skip-forward"]` |
-| Previous Track | Click `[data-testid="control-button-skip-back"]` |
-| Shuffle | Click `[data-testid="control-button-shuffle"]` |
-| Repeat | Click `[data-testid="control-button-repeat"]` |
-| Seek | Simulate range input on progress bar |
-| Volume | Simulate range input on volume bar |
+### Mini Player Modes
 
-### UI Modes
-| Mode | Description |
-|------|-------------|
-| **Full** | Album art + track info + progress bar + all controls |
-| **Compact** | Track info + progress bar + controls (no art) |
-| **Mini** | Controls only, pill-shaped, minimal footprint |
+Switch between modes using the buttons in the player header:
+
+| Mode | What's shown |
+|---|---|
+| **FULL** | Album art + track info + progress bar + all controls |
+| **CMP** (Compact) | Track info + progress bar + controls, no art |
+| **MINI** | Controls-only pill, minimal footprint |
+
+### Picture-in-Picture
+
+Click **Open Picture-in-Picture** in the toolbar popup (or the PiP button inside the player). This opens a separate always-on-top OS window. Move your mouse over it to reveal controls and the seek bar; the album art shows by default.
 
 ### Keyboard Shortcuts
+
 | Shortcut | Action |
-|----------|--------|
+|---|---|
 | `Space` | Play / Pause |
 | `Ctrl + →` | Next Track |
 | `Ctrl + ←` | Previous Track |
+
+*Shortcuts only fire when focus is not inside a text input on the page.*
+
+### Drag-to-Seek
+
+Click anywhere on the progress bar to jump to that position. Click and drag left/right to scrub — the bar updates live, and Spotify seeks on mouse release.
 
 ---
 
 ## 🏗️ Architecture
 
-### `manifest.json`
-- Manifest V3
-- `host_permissions` limited to `https://open.spotify.com/*`
-- Content script runs at `document_idle`
-- Service worker as ES module
+### How it works
 
-### `background.js`
-- Service worker handles lifecycle, message routing
-- Forwards popup commands to active Spotify tab
-- Notifies content script on tab navigation (SPA re-attach)
-
-### `selectors.js`
-- Centralized selector map with `data-testid` (primary) + multiple CSS fallbacks
-- `cachedResolve()` — 5s TTL cache to avoid redundant DOM queries
-- `invalidateCache()` — full bust on track changes / DOM mutations
-- `safeClick()`, `readText()`, `readAttr()` — safe wrapper utilities
-
-### `content.js`
-- **Sync loop**: 500ms when playing, 2000ms when paused (lazy)
-- **MutationObserver**: watches `[data-testid="now-playing-widget"]`, debounced 200ms
-- **Observer/Loop paused** when mini-player is hidden (performance optimization)
-- **Retry logic**: up to 5 retries with exponential backoff for failed clicks
-- **Auto-recovery**: full cache invalidation + observer restart if selectors break
-- **Storage**: debounced `chrome.storage.local` saves for position/size/mode
-
-### `ui.js`
-- **Shadow DOM**: fully encapsulated from Spotify's styles
-- **Draggable**: mousedown on drag handle, clamped to viewport bounds
-- **Freely resizable**: SE corner handle, independent W/H (200–500px × 120–700px)
-- **CSS animations**: fade-in on mount, slide animation on track change
-- **Scrolling text**: auto-scrolls long track titles
-- **Volume slider**: custom styled range input with mute toggle
-
----
-
-## 🔄 Sync System
+Spotify Float does **not** use the Spotify Web API. Instead it reads and controls the player by interacting directly with Spotify's DOM — reading `data-testid` attributes, `aria-label` values, and input element states, then simulating the same events a real click would trigger.
 
 ```
-MutationObserver (DOM changes)
-    ↓ debounce 200ms
-    ↓
-syncNow()
-  ├── readText('trackTitle')    → updateTrack()
-  ├── readText('artistName')   → updateTrack()
-  ├── cachedResolve('albumArt') → updateTrack()
-  ├── parseProgressPct()       → updateProgress()
-  │     ├── Strategy 1: aria-valuenow/aria-valuemax on progressbar
-  │     ├── Strategy 2: input[type=range] value/max
-  │     └── Strategy 3: parse currentTime / totalDuration text
-  ├── playBtn aria-label       → updatePlayState()
-  ├── shuffleBtn aria-label    → updateShuffle()
-  └── repeatBtn aria-label     → updateRepeat()
-
-setInterval(syncNow, 500ms|2000ms)  ← only when UI visible
+chrome toolbar popup
+        │  TOGGLE_PLAYER / OPEN_PIP message
+        ▼
+background.js (service worker)
+        │  chrome.tabs.sendMessage → Spotify tab
+        ▼
+content.js (injected into open.spotify.com)
+        │
+        ├── FloatUI (Shadow DOM player)
+        │     ├── Drag system
+        │     ├── Resize system
+        │     └── Seek system (mousedown → mousemove → mouseup)
+        │
+        ├── syncNow()  ──────────────────────────────────────────┐
+        │     ├── readText('trackTitle')                          │
+        │     ├── readText('artistName')                          │ 500ms interval
+        │     ├── cachedResolve('albumArt')                       │ (2000ms when paused)
+        │     ├── calcProgress() — 3-strategy fallback            │
+        │     └── play/shuffle/repeat state from aria-label       │
+        │                                                          │
+        └── MutationObserver on now-playing-widget ───────────────┘
+              debounced 200ms → invalidateCache() → syncNow()
 ```
 
----
+### Selector resilience
 
-## ⚡ Performance
+`selectors.js` defines a priority-ordered fallback list for every DOM element. The primary selector uses `data-testid` (most stable). If Spotify restructures their DOM, the system automatically falls through to CSS class fallbacks before giving up. Cache TTL is 4 seconds to avoid redundant DOM queries on every sync tick.
 
-- Sync loop **completely stops** when mini-player is hidden
-- MutationObserver **disconnected** when hidden
-- Selector cache with **5s TTL** — avoids re-querying on every sync
-- `debounce()` on MutationObserver callbacks (200ms) and storage writes (500ms)
-- `requestAnimationFrame` not used for polling — only CSS transitions for animations
-- No continuous background loops
+### PiP window
 
----
-
-## 🛡️ Resilience
-
-| Failure Mode | Recovery |
-|---|---|
-| Selector returns null | Retry up to 5× with 1.5s backoff |
-| DOM restructured by Spotify | Full cache invalidation on MutationObserver trigger |
-| Persistent selector failure | `selectorRetryCount` threshold → observer restart + re-scan |
-| SPA navigation | `TAB_UPDATED` message from background triggers re-attach |
-| Player not found yet | `waitForSpotify()` polls until `nowPlayingWidget` appears |
-
----
-
-## 💾 Persistence
-
-Saved to `chrome.storage.local`:
-```json
-{
-  "position": { "left": "20px", "top": "80px" },
-  "size":     { "width": "280px", "height": "auto" },
-  "mode":     "compact",
-  "visible":  true
-}
-```
-
----
-
-## ⚠️ Known Limitations
-
-1. **Spotify DOM changes**: Spotify regularly updates their web app. The selector fallback system handles this, but a major redesign may temporarily break selectors until updated.
-2. **No Lyrics/Queue**: This extension controls playback only; lyrics and queue management require the Spotify Web API.
-3. **Seek precision**: Seek simulation works via range input events; some Spotify versions may handle this differently.
-4. **CSP restrictions**: Spotify's Content Security Policy is strict — the Shadow DOM approach ensures the extension's UI is never affected by Spotify's styles.
+Uses the [Document Picture-in-Picture API](https://developer.chrome.com/docs/web-platform/document-picture-in-picture/) (`window.documentPictureInPicture`). A second `FloatUI` instance is mounted into the PiP window's document. Hover detection uses JS `mouseenter`/`mouseleave` events (CSS `:hover` does not work across PiP window boundaries).
 
 ---
 
 ## 🔧 Updating Selectors
 
-If Spotify updates their DOM and controls stop working:
+If Spotify updates their web app and controls stop responding:
 
-1. Open DevTools on `open.spotify.com`
-2. Inspect the broken control element
-3. Find its `data-testid` attribute or unique CSS class
+1. Open Chrome DevTools on `open.spotify.com`
+2. Inspect the broken button/element
+3. Find its `data-testid` or unique attribute
 4. Update the relevant entry in `selectors.js`
-5. Reload the extension at `chrome://extensions`
+5. Go to `chrome://extensions` → click the reload icon
 
 ---
 
-## 📝 License
+## ⚠️ Known Limitations
 
-MIT — build freely, remix, extend.
+- **Spotify DOM changes** — Spotify updates their web app regularly. The fallback selector system handles minor changes, but a major redesign may require a `selectors.js` update.
+- **Document PiP API** — Requires Chrome 116+. Not available in other browsers.
+- **Free tier only tested** — Works on Spotify Free. Premium users can also use it, though Premium already has its own mini-player.
+- **No lyrics / queue** — Playback control only. Lyrics and queue require the official API.
+
+---
+
+## 🤝 Contributing
+
+Pull requests are welcome. For significant changes, open an issue first to discuss what you'd like to change.
+
+1. Fork the repo
+2. Create a feature branch: `git checkout -b feature/my-feature`
+3. Commit your changes: `git commit -m 'Add some feature'`
+4. Push to the branch: `git push origin feature/my-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+[MIT](LICENSE) © 2025 [Arnab500th](https://github.com/Arnab500th)
+
+---
+
+<div align="center">
+<sub>Built with ♥ by Arnab · No affiliation with Spotify AB</sub>
+</div>
