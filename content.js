@@ -156,7 +156,7 @@
     "*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }",
     ":host { all: initial; font-family: 'DM Sans', system-ui, sans-serif; }",
     "#float-root {",
-    "  --bg:#0d0d12; --bg2:#161620; --bg3:#1e1e2a; --bgh:#252533;",
+    "  --bg:rgba(13, 13, 18, 0.65); --bg2:rgba(22, 22, 32, 0.6); --bg3:rgba(30, 30, 42, 0.5); --bgh:rgba(37, 37, 51, 0.6);",
     "  --ac:#1db954; --acd:rgba(29,185,84,0.15); --acg:rgba(29,185,84,0.3);",
     "  --t1:#fff; --t2:#9898b0; --t3:#55556a;",
     "  --br:rgba(255,255,255,0.07); --r:14px;",
@@ -166,8 +166,10 @@
     "}",
     "#player {",
     "  pointer-events:all; background:var(--bg); border-radius:var(--r);",
-    "  box-shadow:var(--sh); display:flex; flex-direction:column; overflow:hidden;",
-    "  min-width:200px; width:270px; position:relative;",
+    "  box-shadow:0 12px 40px rgba(0,0,0,0.6); overflow:hidden;",
+    "  backdrop-filter:blur(25px) saturate(150%); border:1px solid rgba(255,255,255,0.08);",
+    "  display:flex; flex-direction:column; position:relative; min-width:200px; width:270px;",
+    "  transition:width var(--ea),height var(--ea);",
     "  animation:floatIn 0.22s cubic-bezier(0.34,1.56,0.64,1) forwards;",
     "}",
     "#player::after { content:''; position:absolute; inset:0; border-radius:var(--r); pointer-events:none;",
@@ -395,10 +397,6 @@
     s.getElementById('c-next').addEventListener('click', function () { self._emit('next'); });
     s.getElementById('c-shuf').addEventListener('click', function () { self._emit('shuffle'); });
     s.getElementById('c-rep').addEventListener('click', function () { self._emit('repeat'); });
-    s.getElementById('pt').addEventListener('click', function (e) {
-      var r = e.currentTarget.getBoundingClientRect();
-      self._emit('seek', Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
-    });
     s.getElementById('vs').addEventListener('input', function (e) { self._emit('volume', parseInt(e.target.value, 10)); });
     s.getElementById('vi').addEventListener('click', function () { self._emit('mute'); });
     s.getElementById('c-expand').addEventListener('click', function () { self.setMode(MODES.FULL); });
@@ -407,6 +405,7 @@
     this._setupMiniDrag();
     this._setupDrag();
     this._setupResize();
+    this._setupSeek();
   };
 
   FloatUI.prototype._emit = function (ev, data) { if (this._handlers[ev]) this._handlers[ev](data); };
@@ -511,6 +510,45 @@
     this._onResizeUp = function () { isResizing = false; };
     doc.addEventListener('mousemove', this._onResizeMove);
     doc.addEventListener('mouseup', this._onResizeUp);
+  };
+
+  FloatUI.prototype._setupSeek = function () {
+    var self = this;
+    var pt = this.shadow.getElementById('pt');
+    var pf = this.shadow.getElementById('pf');
+    var isSeeking = false;
+
+    function calcPct(e) {
+      var r = pt.getBoundingClientRect();
+      return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    }
+
+    pt.addEventListener('mousedown', function (e) {
+      isSeeking = true;
+      // Instant visual feedback only — no emit yet
+      if (pf) pf.style.width = (calcPct(e) * 100).toFixed(2) + '%';
+      e.preventDefault();
+      e.stopPropagation(); // Don't trigger drag
+    });
+
+    var doc = this.host ? this.host.ownerDocument : document;
+
+    this._onSeekMove = function (e) {
+      if (!isSeeking) return;
+      // Live scrub: update bar visually while dragging
+      if (pf) pf.style.width = (calcPct(e) * 100).toFixed(2) + '%';
+    };
+
+    this._onSeekUp = function (e) {
+      if (!isSeeking) return;
+      isSeeking = false;
+      var pct = calcPct(e);
+      if (pf) pf.style.width = (pct * 100).toFixed(2) + '%';
+      self._emit('seek', pct); // Single emit only on release
+    };
+
+    doc.addEventListener('mousemove', this._onSeekMove);
+    doc.addEventListener('mouseup', this._onSeekUp);
   };
 
   FloatUI.prototype.setSize = function (s) {
@@ -648,7 +686,6 @@
     var t = setInterval(function () {
       if (resolveSelector(SELECTORS.nowPlayingWidget)) fire();
     }, 800);
-    // Fallback: mount after 10s even if no widget found yet
     var timeout = setTimeout(fire, 10000);
   }
 
@@ -672,7 +709,6 @@
     };
   }
 
-  // ── Document PiP ──────────────────────────────────────────────────────────
   async function openDocumentPiP() {
     if (pipWindow) {
       pipWindow.focus();
@@ -698,57 +734,81 @@
       pipUI = new FloatUI(host);
       pipUI.mount();
 
-      // CSS overrides specifically for PiP
+      // ── PiP overlay styles ─────────────────────────────────────────────────
+      // NOTE: CSS :hover does NOT work reliably in Document PiP windows (separate
+      // OS window context). We use JS mouseenter/mouseleave below for the
+      // show/hide animation. Controls and progress bar are always in the DOM
+      // and fully pointer-events:all so seek/click always work.
       var over = pipWindow.document.createElement('style');
       over.textContent = `
         #float-root { position: static !important; inset: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; }
         #player { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; min-width: 0 !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; overflow: hidden !important; background: #000 !important; display: block !important; }
-        #dh, #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn, #vr, .ag { display: none !important; }
+        #dh, #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn, #vr { display: none !important; }
 
-        /* Full Bleed Art */
+        /* Album art fills the window */
         #aw { position: absolute !important; inset: 0 !important; padding: 0 !important; z-index: 1 !important; display: block !important; }
         .ai { width: 100% !important; height: 100% !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; background: #000 !important; }
-        #art { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; transition: filter 0.3s ease !important; max-width: none !important; }
+        #art { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; transition: filter 0.25s ease !important; max-width: none !important; }
+        .ag { display: none !important; }
 
-        /* Overlay Background */
-        #player::after { content: '' !important; position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.5) !important; opacity: 0 !important; z-index: 2 !important; pointer-events: none !important; transition: opacity 0.3s ease !important; }
+        /* Dark overlay — controlled by JS class .pip-hovered on #player */
+        #player::after { content: '' !important; position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.52) !important; opacity: 0 !important; z-index: 2 !important; pointer-events: none !important; transition: opacity 0.25s ease !important; }
+        #player.pip-hovered::after { opacity: 1 !important; }
+        #player.pip-hovered #art { filter: blur(3px) brightness(0.55) !important; }
 
-        /* Track Info */
-        #ti { position: absolute !important; bottom: 0 !important; left: 0 !important; right: 0 !important; padding: 30px 14px 14px !important; z-index: 3 !important; background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%) !important; height: auto !important; margin: 0 !important; text-align: left !important; display: flex !important; flex-direction: column !important; justify-content: flex-end !important; }
-        .ttl { text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important; font-size: 14px !important; }
-        .art { text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important; font-size: 12px !important; color: #ccc !important; }
+        /* Track info — bottom gradient, hides on hover */
+        #ti { position: absolute !important; bottom: 0 !important; left: 0 !important; right: 0 !important; padding: 32px 14px 12px !important; z-index: 3 !important; background: linear-gradient(0deg, rgba(0,0,0,0.92) 0%, transparent 100%) !important; height: auto !important; margin: 0 !important; display: flex !important; flex-direction: column !important; justify-content: flex-end !important; opacity: 1 !important; transition: opacity 0.25s ease !important; pointer-events: none !important; }
+        #player.pip-hovered #ti { opacity: 0 !important; }
+        .ttl { text-shadow: 0 1px 5px rgba(0,0,0,0.9) !important; font-size: 13px !important; }
+        .art { text-shadow: 0 1px 5px rgba(0,0,0,0.9) !important; font-size: 11px !important; color: #ccc !important; }
 
-        /* Centered Controls Overlay */
-        #ctrl { position: absolute !important; inset: 0 !important; display: flex !important; flex-wrap: wrap !important; align-content: center !important; justify-content: center !important; z-index: 4 !important; opacity: 0 !important; padding: 0 0 15px !important; background: transparent !important; transition: opacity 0.3s ease !important; }
+        /* Controls — always present, fade in on hover via JS class */
+        #ctrl { position: absolute !important; inset: 0 !important; display: flex !important; flex-wrap: wrap !important; align-content: center !important; justify-content: center !important; z-index: 4 !important; opacity: 0 !important; padding: 0 !important; background: transparent !important; transition: opacity 0.25s ease !important; pointer-events: none !important; }
+        #player.pip-hovered #ctrl { opacity: 1 !important; pointer-events: all !important; }
+        .cb.lg { width: 36px !important; height: 36px !important; }
+        .cb.sm { width: 28px !important; height: 28px !important; }
 
-        /* Progress Bar Overlay */
-        #pw { position: absolute !important; bottom: 0 !important; left: 0 !important; right: 0 !important; z-index: 5 !important; opacity: 0 !important; transition: opacity 0.3s ease !important; padding: 0 14px 8px !important; }
-        .trow { margin-bottom: 3px !important; }
-        .tl { color: #fff !important; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
-        .pt { background: rgba(255,255,255,0.25) !important; }
+        /* Progress bar — always present at bottom, fade in on hover via JS class */
+        #pw { position: absolute !important; bottom: 0 !important; left: 0 !important; right: 0 !important; z-index: 5 !important; opacity: 0 !important; transition: opacity 0.25s ease !important; padding: 0 12px 10px !important; pointer-events: none !important; }
+        #player.pip-hovered #pw { opacity: 1 !important; pointer-events: all !important; }
+        .trow { margin-bottom: 4px !important; }
+        .tl { color: rgba(255,255,255,0.9) !important; text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important; }
+        /* Progress track — always clickable even if visually hidden to allow clicking */
+        .pt { background: rgba(255,255,255,0.2) !important; height: 4px !important; cursor: pointer !important; }
+        .pt:hover { height: 6px !important; }
+        .pf { background: rgba(255,255,255,0.85) !important; }
+        .pf::after { background: #fff !important; }
 
-        /* Hover States */
-        #player:hover::after { opacity: 1 !important; }
-        #player:hover #art { filter: blur(4px) brightness(0.6) !important; }
-        #player:hover #ctrl { opacity: 1 !important; }
-        #player:hover #pw { opacity: 1 !important; }
-
-        /* Instant Hide on Mouse Leave */
-        #player:not(:hover) #art, #player:not(:hover)::after, #player:not(:hover) #ctrl, #player:not(:hover) #pw { transition-duration: 0s !important; }
-
-        /* Adjustments for Tiny Windows */
-        @media (max-width: 240px) {
+        @media (max-width: 220px) {
+          .cb.lg { width: 30px !important; height: 30px !important; }
+          .cb.sm { width: 24px !important; height: 24px !important; }
           #ctrl { gap: 2px !important; }
-          .cb.lg { width: 44px !important; height: 44px !important; }
-          #ti { padding-left: 10px !important; padding-right: 10px !important; }
-          #pw { padding-left: 10px !important; padding-right: 10px !important; }
+          #pw { padding: 0 8px 8px !important; }
         }
-        @media (max-height: 200px) {
+        @media (max-height: 160px) {
+          #ti { padding-top: 18px !important; padding-bottom: 8px !important; }
+          .ttl { font-size: 11px !important; }
+          .art { display: none !important; }
+        }
+        @media (max-height: 40px) {
           #ti { display: none !important; }
-          #ctrl { padding-bottom: 0 !important; }
         }
       `;
       pipUI.shadow.appendChild(over);
+
+      // ── JS hover detection for PiP (replaces broken CSS :hover in PiP windows) ──
+      var pipPlayer = pipUI.shadow.getElementById('player');
+      pipWindow.document.addEventListener('mouseenter', function () {
+        if (pipPlayer) pipPlayer.classList.add('pip-hovered');
+      });
+      pipWindow.document.addEventListener('mouseleave', function () {
+        if (pipPlayer) pipPlayer.classList.remove('pip-hovered');
+      });
+      // Also listen on the player element itself for finer control
+      if (pipPlayer) {
+        pipPlayer.addEventListener('mouseenter', function () { pipPlayer.classList.add('pip-hovered'); });
+        pipPlayer.addEventListener('mouseleave', function () { pipPlayer.classList.remove('pip-hovered'); });
+      }
 
       pipUI.on({
         'play-pause': handlePlayPause,
@@ -775,7 +835,6 @@
     }
   }
 
-  // ── Boot ─────────────────────────────────────────────────────────────────
   waitForSpotify(function () {
     loadStorage(function (stored) {
       ui.mount();
@@ -815,7 +874,6 @@
     });
   });
 
-  // ── Sync ─────────────────────────────────────────────────────────────────
   function syncNow() {
     if ((!ui || !isVisible) && !pipUI) return;
     try {
@@ -923,7 +981,6 @@
 
   function stopObs() { if (mutObs) { mutObs.disconnect(); mutObs = null; } }
 
-  // ── Controls ─────────────────────────────────────────────────────────────
   function handlePlayPause() { if (!safeClick('playPauseButton')) retry('playPauseButton'); setTimeout(syncNow, 120); }
   function handlePrev() { if (!safeClick('prevButton')) retry('prevButton'); setTimeout(syncNow, 350); }
   function handleNext() { if (!safeClick('nextButton')) retry('nextButton'); setTimeout(syncNow, 350); }
@@ -966,7 +1023,6 @@
     setTimeout(function () { invalidateCache(key); if (!safeClick(key)) retry(key, n + 1); }, 1200 * (n + 1));
   }
 
-  // ── Hotkeys ───────────────────────────────────────────────────────────────
   function registerHotkeys() {
     document.addEventListener('keydown', function (e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
@@ -975,7 +1031,6 @@
     });
   }
 
-  // ── Messages ──────────────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener(function (msg, _s, reply) {
     if (msg.type === 'TOGGLE_PLAYER') {
       if (ui.isVisible) {
