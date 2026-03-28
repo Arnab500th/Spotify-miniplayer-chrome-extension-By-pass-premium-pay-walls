@@ -417,10 +417,10 @@
   FloatUI.prototype._setupMiniDrag = function () {
     var self = this;
     var doc = this.host ? this.host.ownerDocument : document;
-    this.player.addEventListener('dblclick', function(e) {
-      if(self.mode === 'mini') self._emit('mode', 'full');
+    this.player.addEventListener('dblclick', function (e) {
+      if (self.mode === 'mini') self._emit('mode', 'full');
     });
-    this.player.addEventListener('mousedown', function(e) {
+    this.player.addEventListener('mousedown', function (e) {
       if (self.mode !== 'mini') return;
       if (e.target.closest('#ctrl')) return;
       self.isDragging = true;
@@ -687,7 +687,7 @@
         width: 280,
         height: 420
       });
-      
+
       var host = pipWindow.document.createElement('div');
       host.style.width = '100%';
       host.style.height = '100%';
@@ -702,35 +702,50 @@
       var over = pipWindow.document.createElement('style');
       over.textContent = `
         #float-root { position: static !important; inset: 0 !important; width: 100% !important; height: 100% !important; overflow: hidden !important; }
-        #player { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; height: 100% !important; min-width: 0 !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; overflow: hidden !important; background: var(--bg) !important; }
-        #dh { display: none !important; }
-        #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn { display: none !important; }
-        #aw { flex: 1 1 auto; min-height: 0; padding: 0 14px 10px !important; display: flex; align-items: center; justify-content: center; }
-        .ai { height: 100% !important; max-height: 100% !important; padding-top: 0 !important; position: static !important; display: flex; align-items: center; justify-content: center; background: transparent !important; }
-        #art { width: auto !important; max-width: 100%; height: 100%; object-fit: contain; position: static !important; }
-        #ti { padding: 0 14px 4px !important; overflow: hidden; min-width: 0; flex-shrink: 0; }
-        #pw { padding: 0 14px 2px !important; flex-shrink: 0; }
+        #player { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; min-width: 0 !important; border-radius: 0 !important; box-shadow: none !important; border: none !important; cursor: default !important; overflow: hidden !important; background: #000 !important; display: block !important; }
+        #dh, #btn-full, #btn-compact, #btn-mini, #c-expand, #pip-btn, #vr, .ag { display: none !important; }
+
+        /* Full Bleed Art */
+        #aw { position: absolute !important; inset: 0 !important; padding: 0 !important; z-index: 1 !important; display: block !important; }
+        .ai { width: 100% !important; height: 100% !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; background: #000 !important; }
+        #art { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; object-fit: cover !important; transition: filter 0.3s ease !important; max-width: none !important; }
+
+        /* Overlay Background */
+        #player::after { content: '' !important; position: absolute !important; inset: 0 !important; background: rgba(0,0,0,0.5) !important; opacity: 0 !important; z-index: 2 !important; pointer-events: none !important; transition: opacity 0.3s ease !important; }
+
+        /* Track Info */
+        #ti { position: absolute !important; bottom: 0 !important; left: 0 !important; right: 0 !important; padding: 30px 14px 14px !important; z-index: 3 !important; background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%) !important; height: auto !important; margin: 0 !important; text-align: left !important; display: flex !important; flex-direction: column !important; justify-content: flex-end !important; }
+        .ttl { text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important; font-size: 14px !important; }
+        .art { text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important; font-size: 12px !important; color: #ccc !important; }
+
+        /* Centered Controls Overlay */
+        #ctrl { position: absolute !important; inset: 0 !important; display: flex !important; flex-wrap: wrap !important; align-content: center !important; justify-content: center !important; z-index: 4 !important; opacity: 0 !important; padding: 0 0 15px !important; background: transparent !important; transition: opacity 0.3s ease !important; }
+
+        /* Progress Bar Overlay */
+        #pw { position: absolute !important; bottom: 0 !important; left: 0 !important; right: 0 !important; z-index: 5 !important; opacity: 0 !important; transition: opacity 0.3s ease !important; padding: 0 14px 8px !important; }
         .trow { margin-bottom: 3px !important; }
-        #ctrl { padding: 2px 14px 6px !important; flex-shrink: 0; }
-        #vr { padding: 0 14px 10px !important; flex-shrink: 0; }
-        
+        .tl { color: #fff !important; text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+        .pt { background: rgba(255,255,255,0.25) !important; }
+
+        /* Hover States */
+        #player:hover::after { opacity: 1 !important; }
+        #player:hover #art { filter: blur(4px) brightness(0.6) !important; }
+        #player:hover #ctrl { opacity: 1 !important; }
+        #player:hover #pw { opacity: 1 !important; }
+
+        /* Instant Hide on Mouse Leave */
+        #player:not(:hover) #art, #player:not(:hover)::after, #player:not(:hover) #ctrl, #player:not(:hover) #pw { transition-duration: 0s !important; }
+
+        /* Adjustments for Tiny Windows */
         @media (max-width: 240px) {
-          #ctrl { gap: 2px !important; padding: 2px 8px 6px !important; }
-          .cb.lg { width: 34px !important; height: 34px !important; }
-          .cb.sm { width: 26px !important; height: 26px !important; }
-          #ti { padding-left: 8px !important; padding-right: 8px !important; }
-          #aw { padding-left: 8px !important; padding-right: 8px !important; }
-          #pw { padding-left: 8px !important; padding-right: 8px !important; }
-          #vr { padding-left: 8px !important; padding-right: 8px !important; }
+          #ctrl { gap: 2px !important; }
+          .cb.lg { width: 44px !important; height: 44px !important; }
+          #ti { padding-left: 10px !important; padding-right: 10px !important; }
+          #pw { padding-left: 10px !important; padding-right: 10px !important; }
         }
-        
-        @media (max-height: 260px) {
-          #player { display: block !important; padding-top: 14px !important; }
-          #aw { float: left !important; width: 48px !important; height: 48px !important; padding: 0 0 0 14px !important; margin-bottom: 10px !important; flex: none !important; }
-          .ai { width: 100% !important; height: 100% !important; border-radius: 6px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important; padding: 0 !important; }
-          #ti { margin-left: 48px !important; padding: 0 14px 0 12px !important; text-align: left !important; height: 48px !important; display: flex !important; flex-direction: column !important; justify-content: center !important; }
-          #pw { clear: both !important; padding: 4px 14px 2px !important; }
-          #vr { display: none !important; }
+        @media (max-height: 200px) {
+          #ti { display: none !important; }
+          #ctrl { padding-bottom: 0 !important; }
         }
       `;
       pipUI.shadow.appendChild(over);
@@ -784,7 +799,7 @@
         'mode': function (m) { saveStorage({ mode: m }); },
         'pos': function (p) { saveStorage({ position: p }); },
         'size': function (s) { saveStorage({ size: s }); },
-        'open-pip': function () { openDocumentPiP().catch(function(){}); }
+        'open-pip': function () { openDocumentPiP().catch(function () { }); }
       });
 
       ui.onVisibilityChange(function (v) {
@@ -810,7 +825,7 @@
       var artUrl = '';
       if (artEl && artEl.src) {
         artUrl = artEl.src.replace(/ab67616d00004851/g, 'ab67616d0000b273')
-                          .replace(/ab67616d00001e02/g, 'ab67616d0000b273');
+          .replace(/ab67616d00001e02/g, 'ab67616d0000b273');
       }
 
       if (title && title !== lastTitle) { lastTitle = title; invalidateCache(); }
@@ -836,7 +851,12 @@
       var cTime = readText('currentTime');
       var tTime = readText('totalDuration');
       var volEl = resolveSelector(SELECTORS.volumeSlider);
-      var vl = volEl ? parseInt(volEl.value, 10) : -1;
+      var vl = -1;
+      if (volEl && volEl.value !== undefined) {
+        var vMax = parseFloat(volEl.max);
+        if (isNaN(vMax) || vMax <= 0) vMax = 1;
+        vl = Math.round((parseFloat(volEl.value) / vMax) * 100);
+      }
 
       if (ui && isVisible) {
         ui.updateTrack(title, artist, artUrl);
@@ -933,7 +953,9 @@
     var sl = resolveSelector(SELECTORS.volumeSlider);
     if (!sl) return;
     var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    setter.call(sl, val);
+    var vMax = parseFloat(sl.max);
+    if (isNaN(vMax) || vMax <= 0) vMax = 1;
+    setter.call(sl, (val / 100) * vMax);
     sl.dispatchEvent(new Event('input', { bubbles: true }));
     sl.dispatchEvent(new Event('change', { bubbles: true }));
     ui.updateVolume(val);
@@ -959,7 +981,7 @@
       if (ui.isVisible) {
         ui.isVisible = false;
         if (ui.host) ui.host.style.display = 'none';
-        isVisible = false; 
+        isVisible = false;
         if (!pipUI) { stopSync(); stopObs(); }
       } else {
         ui.show(); isVisible = true; syncNow(); startSync(); startObs();
@@ -973,7 +995,7 @@
       setTimeout(function () { stopObs(); invalidateCache(); startObs(); syncNow(); }, 1000);
 
     } else if (msg.type === 'OPEN_PIP') {
-      openDocumentPiP().then(function() { reply({ ok: true }); }).catch(function(e) { reply({ error: e.message }); });
+      openDocumentPiP().then(function () { reply({ ok: true }); }).catch(function (e) { reply({ error: e.message }); });
       return true;
     }
   });
